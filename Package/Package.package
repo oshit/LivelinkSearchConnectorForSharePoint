@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns:dm0="http://schemas.microsoft.com/VisualStudio/2008/DslTools/Core" dslVersion="1.0.0.0" Id="32da8d62-1d24-42c8-a2ee-dd5a88f117b0" solutionId="32da8d62-1d24-42c8-a2ee-dd5a88f117b0" resetWebServer="false" sharePointProductVersion="15.0" name="LivelinkSearchConnector" xmlns="http://schemas.microsoft.com/VisualStudio/2008/SharePointTools/PackageModel">
+  <projectItems>
+    <projectItemReference itemId="200c76e6-ad48-4c51-9ecb-b7a1475f5951" />
+  </projectItems>
+</package>

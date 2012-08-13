@@ -1,0 +1,196 @@
+﻿NAME
+
+  Livelink OpenSearch Connector for SharePoint 2013 Preview
+
+SYNOPSIS
+
+  Provides an ASPX page that serves as an OpenSearch 1.1 compliant connector
+  for the SharePoint federated search. It is packed in a solution for
+  SharePoint 2013 Preview but porting for SharePoint 2010 or even SharePoint
+  2007 is possible because they all support search federation.
+
+IMPLEMENTATION DETAILS
+
+  The connector ASPX page is deployed to the 15\LAYOUTS folder and is
+  accessible at the URL /_layouts/LivelinkOpenSearch/ExecuteQuery.aspx
+  prefixed by a SharePoint web site URL providing the user context. It
+  performs Livelink XML Search queries and returns the results as a XML
+  content with the RSS 2.0 schema compliant with OpenSearch 1.1 with
+  extensions for Microsoft Windows and SharePoint. If the search operation
+  fails the page returns no content and the response will contain the HTTP
+  status code 500 with the error message in the status description.
+
+  If Kerberos is used SSO can be turned on by the parameter UseSSO=true; the
+  current authenticated SharePoint context will be passed to the Livelink HTTP
+  request. Otherwise the Livelink search request will be performed as a
+  Livelink system administrator with credentials provided by the SharePoint
+  Secure Store Service. The call will be impersonated to a Livelink user
+  mapped from the current SharePoint user to trim the search results according
+  to the current user's permissions.
+
+SEARCH URL TEMPLATE EXAMPLE
+
+  This is an example of the search URL template to be entered in an .OSDX
+  descriptor file or in a SharePoint search result source configuration (read
+  it as a single line without whitespace):
+
+    http://sparepoint/_layouts/LivelinkOpenSearch/ExecuteQuery?
+    query={searchTerms}&targetAppID=myserver&loginPattern=%7Buser:lc%7D&
+	livelinkUrl=http%3A%2F%2Fmyserver%2Flivelink%2Fllisapi.dll&count={count}&
+    startIndex={startIndex}&extraParams=lookfor1%3Dallwords&
+	ignoreSSLWarnings=true&inputEncoding={inputEncoding}&
+	outputEncoding={outputEncoding}&language={language}
+
+  It consists of the absolute URL to the connector ASPX page on a SharePoint
+  web site accessible to all searching users and the URL query template that
+  will be partially resolved by the SharePoint search federator. Here we are
+  the parameters explained:
+
+    query             - {searchTerms}
+                        To be replaced by the search terms typed by the user.
+    livelinkUrl       - http://myserver/livelink/llisapi.dll
+                        Absolute URL of the Livelink ISAPI dll used as the
+                        entry point to access Livelink over HTTP/S.
+    targetAppID       - myserver
+                        The SharePoint Secure Store Service provides
+                        credentials of the Livelink system administrator in
+                        the target application "myserver".
+    loginPattern      - {user:lc}
+                        Livelink user login names can be mapped from
+                        SharePoint user names by using just the user login
+                        name without the domain converted to lower-case.
+    startIndex        - {startIndex}
+                        To be replaced by the index of the hit to start with.
+    count             - {count}
+                        To be replaced by the maximum hit count to return
+                        which is usually the result page size.
+    extraParams       - lookfor1=allwords
+                        URL query suffix to be sent to Livelink as a part of
+                        the search query refining the query execution.
+    ignoreSSLWarnings - true
+                        If the Livelink server has not a valid SSL certificate
+                        the error would be ignored and the search allowed.
+    language          - {language}
+                        To be replaced by the preferred search hits language.
+    inputEncoding     - {inputEncoding}
+                        To be replaced by the encoding of the search terms.
+    outputEncoding    - {outputEncoding}
+                        To be replaced by the encoding of the search results.
+    
+  Notice that some parameters are URL parts and should be URL encoded so that
+  the connector ASPX page gets them correctly when it is called. The parameter
+  LoginPattern is URL encoded too; some expressions in braces could be
+  mistakenly resolved by the search federator before it calls the URL.
+
+URL PARAMETERS
+
+  All available URL parameters of ExecuteQuery.aspx:
+
+    Query (string)
+      Search terms in the syntax recognized by the Livelink XML Search API. It
+      can be a list of words that you want to be found in the returned search
+      results for, for example. This parameter is mandatory.
+
+    LivelinkUrl (string)
+      The complete URL of the Livelink CGI executable or the Livelink module
+      for the web server you use; http://myserver/livelink/llisapi.dll, for
+      example. This parameter is mandatory.
+
+    TargetAppID (string)
+      The identifier of a target application in the SharePoint Secure Store
+      that contains credentials of a Livelink system administrator. Only the
+      value types UserName and Password are used and they must not be empty.
+
+      If a search query needs to be impersonated for another user a system
+      administrator must execute it. If UseSSO is not provided or is false
+      this parameter is mandatory otherwise it is ignored and may be omitted.
+
+    LoginPattern (string)
+      The text pattern to generate a Livelink login name from a SharePoint
+      user. Users are usually synchronized from SharePoint (Windows AD) to
+      Livelink and their names are transformed by using a predictable pattern.
+      For example, the following pattern will use the SharePoint user name
+      without the Windows domain converted to lower-case and append to it a
+      constant e-mail-like domain: "{user:lc}@myserver.com".
+
+      The pattern describing the user name transformation is a combination of
+      parameter placeholders and other text. The parameter placeholders are
+      enclosed in braces and are replaced with values from the SharePoint user
+      information:
+
+        {login}  - complete login name; with the domain if provided.
+        {user}   - only user name; without the domain.
+        {domain} - only the domain name; empty if no domain is provided.
+
+      Unrecognized parameter placeholders (expressions in braces) are left
+      intact. The parameter placeholders can be used together with modifiers
+      that transform the text value further. They start with colon and are
+      written between the parameter placeholder name and the right closing
+      brace like {domain:uc}, for example:
+
+        :lc - transform the value to lower-case
+        :uc - transform the value to upper-case
+
+      If a search query needs to be impersonated for another user its Livelink
+      login name must be used. If UseSSO is not provided or is false this
+      parameter is mandatory otherwise it is ignored and may be omitted.
+
+    UseSSO (boolean)
+      If you use SSO in the entire environment covering Windows, SharePoint
+      and Livelink that allows you working in the browser with any system
+      without an explicit login you can set this parameter to true. You will
+      need neither configuring the Livelink system administrator credentials
+      in a SharePoint Secure Store target application nor the login name
+      pattern to infer the Livelink user name from the authenticated
+      SharePoint user. The default value is false.
+
+    IgnoreSSLWarnings (boolean)
+      If the Livelink LivelinkUrl includes the HTTPS protocol and the SSL
+      certificate of the Livelink server is invalid (expired, for example) the
+      search request would fail. If you are sure and want to connect to the
+      Livelink server in spite of it set this parameter to true. The default
+      value is false.
+
+    StartIndex (integer)
+      Start index of the first search result to return. If not provided the
+      number 1 is assumed; to start with the very first search hit available.
+
+    Count (integer)
+      The maximum count of returned search results. If not provided the actual
+      count will be decided by the search engine. Usually not all available
+      hits are returned; the maximum count can be limited to 1000 from
+      peformance reasons, for example.
+
+    ExtraParams (string)
+      Additional URL query string to append to the Livelink XML Search API
+      URL. The string should not start with ampersand and will be appended
+      as-is. For example, the value "lookfor1=allwords" will require returning
+      only those results where all entered search terms can be found.
+
+    Language (string)
+      The preferred language for the search results.  It is currently unused.
+
+    InputEncoding (string)
+      The encoding of the input search terms. It is used to check that only
+      either ASCII or UTF-8 URL parameters were sent. Other encodings are not
+      supported now.
+
+    OutputEncoding (string)
+      The expected encoding of the search results. It is used to check that
+      only either ASCII or UTF-8 output was requested. Other encodings are not
+      supported now.
+
+HISTORY
+
+  2012/08/14  Version 1.0
+              * Initial release.
+
+AUTHOR
+------
+
+  Ferdinand Prantl <prantlf@gmail.com>
+
+LICENSE
+-------
+
+  GPL (See the enclosed LICENSE file.)
