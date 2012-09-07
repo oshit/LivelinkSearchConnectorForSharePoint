@@ -38,7 +38,7 @@ SEARCH URL TEMPLATE EXAMPLE
     query={searchTerms}&targetAppID=myserver&loginPattern=%7Buser:lc%7D&
 	livelinkUrl=http%3A%2F%2Fmyserver%2Flivelink%2Fllisapi.dll&count={count}&
     startIndex={startIndex}&extraParams=lookfor1%3Dallwords&
-	ignoreSSLWarnings=true&inputEncoding={inputEncoding}&
+	maxSummaryLength=185&ignoreSSLWarnings=true&inputEncoding={inputEncoding}&
 	outputEncoding={outputEncoding}&language={language}
 
   It consists of the absolute URL to the connector ASPX page on a SharePoint
@@ -67,6 +67,9 @@ SEARCH URL TEMPLATE EXAMPLE
     extraParams       - lookfor1=allwords
                         URL query suffix to be sent to Livelink as a part of
                         the search query refining the query execution.
+    maxSummaryLength  - 185
+                        Limit the maximum length of the displayed document
+                        summary to make the result list more compact.
     ignoreSSLWarnings - true
                         If the Livelink server has not a valid SSL certificate
                         the error would be ignored and the search allowed.
@@ -153,7 +156,8 @@ URL PARAMETERS
 
     StartIndex (integer)
       Start index of the first search result to return. If not provided the
-      number 1 is assumed; to start with the very first search hit available.
+      number 0 (the first page) is assumed; to start with the very first
+      search hit available.
 
     Count (integer)
       The maximum count of returned search results. If not provided the actual
@@ -166,6 +170,15 @@ URL PARAMETERS
       URL. The string should not start with ampersand and will be appended
       as-is. For example, the value "lookfor1=allwords" will require returning
       only those results where all entered search terms can be found.
+
+    MaxSummaryLength (integer)
+      Can limit the maximum length of the textual summary that is displayed
+      below a search hit to give a hint what is the document about. It usually
+      contains highlighted search terms. I saw Livelink returning really long
+      passages (more than 1300 characters) while I have not seen SharePoint
+      returning more than 185 characters. It can make the result list long
+      and difficult to browse. You can trim the length of the displayed
+      summary by this parameter to never exceed the specified length.
 
     Language (string)
       The preferred language for the search results.  It is currently unused.

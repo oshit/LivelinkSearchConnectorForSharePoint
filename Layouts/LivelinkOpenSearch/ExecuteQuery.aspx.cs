@@ -3,11 +3,15 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Web.UI;
-using System.Xml.XPath;
 using Microsoft.SharePoint;
 using Microsoft.SharePoint.WebControls;
 
 namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
+
+    // The page can return either XML compliant with OpenSearch 1.1 to be integrated
+    // with OpenSearch clients or HTML displayable in the browser, which can be used
+    // for testing purposes or for OpenSearch clients that display HTML.
+    enum OutputFormat { XML, HTML }
 
     // Performs Livelink XML Search queries and returns the result as a RSS 2.0 content.
     // If the operation fails the page returns the HTTP status code 500 with the error
@@ -25,15 +29,16 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
     //   LivelinkUrl       - http://myserver/livelink/llisapi.dll
     //   TargetAppID       - myserver
     //   LoginPattern      - {user:lc}
-    //   StartIndex        - 1
+    //   StartIndex        - 0
     //   Count             - 10
     //   ExtraParams       - lookfor1=allwords
+    //   MaxSummaryLength  - 185
     //   IgnoreSSLWarnings - true
     //
     //   http://sparepoint/_layouts/LivelinkOpenSearch/ExecuteQuery?query=XML+Search&
     //   livelinkUrl=http%3A%2F%2Fmyserver%2Flivelink%2Fllisapi.dll&targetAppID=myserver&
-    //   loginPattern=%7Buser:lc%7D&startIndex=1&count=10&extraParams=lookfor1%3Dallwords&
-    //   ignoreSSLWarnings=true
+    //   loginPattern=%7Buser:lc%7D&startIndex=0&count=10&extraParams=lookfor1%3Dallwords&
+    //   maxSummaryLength=185&ignoreSSLWarnings=true
     //
     // Notice that some parameters are URL parts and should be URL encoded so that this page
     // gets them correctly when it is called. The parameter LoginPattern is URL encoded too;
@@ -101,8 +106,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         // in spite of it set this parameter to true. The default value is false.
         bool IgnoreSSLWarnings { get; set; }
 
-        // Start index of the first search result to return. If not provided the number 1 is
-        // assumed; to start with the very first search hit available.
+        // Start index of the first search result to return. If not provided the number 0
+        // (the first page) assumed; to start with the very first search hit available.
         int StartIndex { get; set; }
 
         // The maximum count of returned search results. If not provided the actual count
@@ -116,6 +121,14 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         // results where all entered search terms can be found.
         string ExtraParams { get; set; }
 
+        // Can limit the maximum length of the textual summary that is displayed below a search
+        // hit to give a hint what is the document about. It usually contains highlighted
+        // search terms. I saw Livelink returning really long passages (more than 1300 characters)
+        // while I have not seen SharePoint returning more than 185 characters. It can make the
+        // result list long and difficult to browse. You can trim the length of the displayed
+        // summary by this parameter to never exceed the specified length.
+        int MaxSummaryLength { get; set; }
+
         // The encoding of the input search terms. It is used to check that only either ASCII
         // or UTF-8 URL parameters were sent. Other encodings are not supported now.
         string InputEncoding { get; set; }
@@ -126,6 +139,10 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
         // The preferred language for the search results. It is currently unused.
         string Language { get; set; }
+
+        // The search results output format; XML or HTML. This controls also the MIME type
+        // of the reponse: text/xml or text/html.
+        OutputFormat Format { get; set; }
 
         // Reads and checks the provided URL parameters, performs the Livelink XML Search
         // query, transforms its results to RSS 2.0 and writes the content to the response
@@ -139,18 +156,53 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                         (sender, cert, chain, sslError) => true;
                 var query = GetQuery();
                 using (var results = GetResults(query)) {
-                    Response.ContentType = "text/xml";
-                    TransformResults(writer, query, results);
+                    var searchUrl = LivelinkUrl + "?" + SearchHelper.ConvertToBrowserUsage(query);
+                    Transformer transformer;
+                    switch (Format) {
+                        case OutputFormat.XML:
+                            transformer = new XMLTransformer(Query, searchUrl)
+                                { MaxSummaryLength = MaxSummaryLength };
+                            Response.ContentType = "text/xml";
+                            break;
+                        case OutputFormat.HTML:
+                            var previousUrl = StartIndex > 0 && Count > 0 ?
+                                GetOtherPageUrl(false) : null;
+                            var nextUrl = Count > 0 ? GetOtherPageUrl(true) : null;
+                            transformer = new HTMLTransformer(Query, searchUrl,
+                                previousUrl, nextUrl) { MaxSummaryLength = MaxSummaryLength };
+                            Response.ContentType = "text/html";
+                            break;
+                        default:
+                            throw new InvalidOperationException(string.Format(
+                                "Unexpected output format: {0}.", Format));
+                    }
+                    transformer.TransformResults(results, writer);
                 }
             } catch (Exception exception) {
-                Response.StatusCode = 500;
-                Response.StatusDescription = exception.Message;
+                // If parsing the reponse format failed the machine processing will be
+                // supported better by returning a HTTP error. The browser response will
+                // not be so friendly but because the output format is parsed at the very
+                // beginning this should not be a problem. HTTP success code should not be
+                // returned unless we are sure that the scenario is interactive and the user
+                // will be able to see the reponse in the browser.
+                if (Format == OutputFormat.HTML) {
+                    Response.ContentType = "text/html";
+                    FormatError(exception, writer);
+                } else {
+                    Response.StatusCode = 500;
+                    Response.StatusDescription = exception.Message;
+                }
             }
         }
 
         // Sets values of properties in this class from the provided URL parameters
         // or from the assumed parameter defaults.
         void ParseUrl() {
+            // Repsonse formt is deduced at the very start to be able to format errors
+            // that may occur in this method already.
+            var format = Request.QueryString["format"];
+            if (!string.IsNullOrEmpty(format))
+                Format = (OutputFormat) Enum.Parse(typeof(OutputFormat), format, true);
             Query = Request.QueryString["query"];
             if (string.IsNullOrEmpty(Query))
                 throw new ApplicationException("Search query was empty.");
@@ -172,11 +224,14 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 StringComparison.InvariantCultureIgnoreCase);
             var startIndex = Request.QueryString["startIndex"];
             if (!string.IsNullOrEmpty(startIndex))
-                StartIndex = int.Parse(startIndex, CultureInfo.InvariantCulture) + 1;
+                StartIndex = int.Parse(startIndex, CultureInfo.InvariantCulture);
             var count = Request.QueryString["count"];
             if (!string.IsNullOrEmpty(count))
                 Count = int.Parse(count, CultureInfo.InvariantCulture);
             ExtraParams = Request.QueryString["extraParams"];
+            var maxSummaryLength = Request.QueryString["maxSummaryLength"];
+            if (!string.IsNullOrEmpty(maxSummaryLength))
+                MaxSummaryLength = int.Parse(maxSummaryLength, CultureInfo.InvariantCulture);
             InputEncoding = Request.QueryString["inputEncoding"];
             if (!string.IsNullOrEmpty(InputEncoding) && !(
                 "ASCII".Equals(InputEncoding, StringComparison.InvariantCultureIgnoreCase) ||
@@ -226,213 +281,51 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             return request.GetResponseContent();
         }
 
-        // Transforms the Livelink XML Search results to the RSS 2.0 schema specialized
-        // for OpenSearch 1.1 and writes it to the response output.
-        void TransformResults(HtmlTextWriter writer, string query, Stream results) {
-            // If something goes severely wrong Livelink returns a HTML page with the error
-            // details. In such case the following statement fails with an error that no
-            // document can be recognoized in the input stream. It can happen if the HTTP
-            // request was not autenticated - a login HTML page would be returned.
-            var document = new XPathDocument(results);
-            var navigator = document.CreateNavigator();
-            // Livelink XML Search API returns errors in the XML output; not by the HTTP status.
-            var error = navigator.SelectSingleNode("/Output/Error");
-            if (error != null)
-                throw new ApplicationException(error.GetSafeValue());
-            var urlBase = new Uri(LivelinkUrl).GetComponents(UriComponents.SchemeAndServer,
-                UriFormat.Unescaped);
-            writer.Write("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-            // OpenSearch schema enables paging of the search results. Yahoo Media schema
-            // enables media content like image thumbnails. SharePoint Search schema enables
-            // file type recognition.
-            writer.Write("<rss version=\"2.0\"");
-            writer.Write(" xmlns:os=\"http://a9.com/-/spec/opensearch/1.1/\"");
-            writer.Write(" xmlns:m=\"http://search.yahoo.com/mrss/\"");
-            writer.Write(" xmlns:ss=\"http://schemas.microsoft.com/SharePoint/Search/RSS\">");
-            writer.Write("<channel>");
-            // The title includes minimum information - the Livelink server host and query terms.
-            writer.Write("<title>");
-            writer.WriteEncodedText("Livelink Enterprise at ");
-            writer.WriteEncodedText(new Uri(LivelinkUrl).Host);
-            writer.WriteEncodedText(": ");
-            writer.WriteEncodedText(Query);
-            writer.Write("</title>");
-            // The link should reproduce these query results if used interactively in the browser.
-            writer.Write("<link>");
-            query = SearchHelper.ConvertToBrowserUsage(query);
-            writer.WriteEncodedText(LivelinkUrl + "?" + query);
-            writer.Write("</link>");
-            // The description contains the full original Livelink XML Search API URL.
-            writer.Write("<description>");
-            writer.WriteEncodedText("Search results of the query executed against the Enterprise Workspace of the Livelink server by the URL ");
-            writer.WriteEncodedText(LivelinkUrl + "?" + query);
-            writer.WriteEncodedText(".");
-            writer.Write("</description>");
-            // The name of this connector is used as the user agent for the Livelink requests
-            // and also as the generator of these search results.
-            writer.Write("<generator>");
-            writer.WriteEncodedText(WebClient.UserAgent);
-            writer.Write("</generator>");
-            // The search results can be marked by the Livelink search icon pointing to the link
-            // that should reproduce these query results interactively in the browser.
-            writer.Write("<image>");
-            writer.Write("<title>");
-            writer.WriteEncodedText("Search results: ");
-            writer.WriteEncodedText(Query);
-            writer.Write("</title>");
-            writer.Write("<url>");
-            writer.WriteEncodedText(urlBase + "/img/icon-search.gif");
-            writer.Write("</url>");
-            writer.Write("<link>");
-            writer.WriteEncodedText(LivelinkUrl + "?" + query);
-            writer.Write("</link>");
-            writer.Write("</image>");
-            var info = navigator.SelectSingleNode("/Output/SearchResultsInformation");
-            if (info != null) {
-                // The following three elements are needed to enable paging in the search results.
-                writer.Write("<os:totalResults>");
-                writer.Write(info.SelectSingleNode("EstTotalResults").GetSafeValue());
-                writer.Write("</os:totalResults>");
-                writer.Write("<os:startIndex>");
-                writer.Write(info.SelectSingleNode("CurrentStartAt").GetSafeValue());
-                writer.Write("</os:startIndex>");
-                writer.Write("<os:itemsPerPage>");
-                writer.Write(info.SelectSingleNode("NumberResultsThisPage").GetSafeValue());
-                writer.Write("</os:itemsPerPage>");
-                // Extra query information in the OpenSearch schema.
-                writer.Write("<os:Query role=\"request\" title=\"");
-                writer.WriteEncodedText("Livelink Search");
-                writer.Write("\" searchTerms=\"");
-                writer.WriteEncodedText(Query);
-                writer.Write("\" startPage=\"");
-                writer.Write(StartIndex > 0 ? StartIndex : 1);
-                writer.Write("\" />");
-            }
-            // The search hits follow not encapsulated in an XML element.
-            var hits = navigator.Select("/Output/SearchResults/SearchResult");
-            foreach (XPathNavigator hit in hits) {
-                writer.Write("<item>");
-                // The title of the hit is made of the Livelink object name which is usually
-                // the file name for documents.
-                writer.Write("<title>");
-                // OTName element can have language-dependent sub-elements; take just the body.
-                var title = hit.SelectSingleNode("OTName/text()").GetSafeValue();
-                writer.WriteEncodedText(title);
-                writer.Write("</title>");
-                // The link points to the Livelink object's viewing URL which is usually
-                // the overview page with basic properties and a download link.
-                writer.Write("<link>");
-                var name = hit.SelectSingleNode("OTName");
-                if (name != null) {
-                    var url = urlBase + name.GetAttribute("ViewURL", "");
-                    writer.WriteEncodedText(url);
-                }
-                writer.Write("</link>");
-                // The description contains a document fragment where the search terms were
-                // found. It is available for documents only; objects without content that
-                // were returned because thir name or other meta-data matched have this
-                // value empty.
-                writer.Write("<description>");
-                var summary = hit.SelectSingleNode("OTSummary");
-                writer.WriteEncodedText(summary.GetSafeValue());
-                writer.Write("</description>");
-                // Publishing date should be the last modificattion time but Livelink returns
-                // just the creation date from the default search template.
-                var date = hit.SelectSingleNode("OTObjectDate");
-                if (date != null) {
-                    writer.Write("<pubDate>");
-                    writer.WriteEncodedText(date.GetSafeValue());
-                    writer.Write("</pubDate>");
-                }
-                // Unfortunately, Livelink returns only the numeric user identifier
-                // of the document's creator here. Resolving the actual user name
-                // by additional HTTP requests woudl be too bad for the performance.
-                var author = hit.SelectSingleNode("OTCreatedBy");
-                if (author != null) {
-                    writer.Write("<author>");
-                    writer.WriteEncodedText(author.GetSafeValue());
-                    writer.Write("</author>");
-                }
-                // SharePoint sadly does not recognize the thumbnail and enclosure elements
-                // to display icon and basic document information. Windows search does.
-                var type = hit.SelectSingleNode("OTMIMEType");
-                if (type != null) {
-                    writer.Write("<m:thumbnail url=\"");
-                    var url = urlBase + type.GetAttribute("IconURL", "");
-                    writer.WriteEncodedText(url);
-                    writer.Write("\" />");
-                }
-                // The document size should be written in bytes to the output.
-                var size = hit.SelectSingleNode("OTObjectSize");
-                int length = 0;
-                if (size != null) {
-                    var number = int.Parse(size.GetSafeValue(), CultureInfo.InvariantCulture);
-                    var factor = 1;
-                    var suffix = size.GetAttribute("Suffix", "");
-                    if (suffix != null)
-                        switch (suffix.Trim().ToUpperInvariant()) {
-                            case "KB":
-                                factor = 1024;
-                                break;
-                            case "MB":
-                                factor = 1024 * 1024;
-                                break;
-                            case "GB":
-                                factor = 1024 * 1024 * 1024;
-                                break;
-                        }
-                    length = number * factor;
-                }
-                // Both SharePoint and Livelink do not allow documents with zero length.
-                // Size and file extension properties should be written only for documents.
-                if (length > 0) {
-                    writer.Write("<ss:size>");
-                    writer.Write(length);
-                    writer.Write("</ss:size>");
-                    var dot = title.LastIndexOf('.');
-                    if (dot >= 0) {
-                        writer.Write("<ss:dotfileextension>");
-                        writer.Write(title.Substring(dot).ToUpper());
-                        writer.Write("</ss:dotfileextension>");
-                    }
-                }
-                // Clients that can use extra content information can show a direct download
-                // link to open the document without first visiting the overview page.
-                if (name != null && type != null && !string.IsNullOrWhiteSpace(type.Value)) {
-                    writer.Write("<enclosure url=\"");
-                    var url = urlBase + name.GetAttribute("DownloadURL", "");
-                    writer.WriteEncodedText(url);
-                    writer.Write("\" type=\"");
-                    writer.WriteEncodedText(type.GetSafeValue());
-                    if (length > 0) {
-                        writer.Write("\" length=\"");
-                        writer.Write(length);
-                    }
-                    writer.Write("\" />");
-                }
-                writer.Write("</item>");
-            }
-            writer.Write("</channel>");
-            writer.Write("</rss>");
+        // Returns URL that would navigate the previous or the next page of search results
+        // relatively to the currently rendered one.
+        string GetOtherPageUrl(bool next) {
+            var startIndex = StartIndex;
+            if (next)
+                startIndex += Count;
+            else
+                startIndex -= Count;
+            var url = Request.Url.ToString();
+            var start = url.IndexOf("&startIndex=", StringComparison.InvariantCultureIgnoreCase);
+            if (start < 0)
+                start = url.IndexOf("?startIndex=", StringComparison.InvariantCultureIgnoreCase);
+            if (start < 0)
+                return null;
+            start += 12;
+            var end = url.IndexOf("&", start, StringComparison.InvariantCultureIgnoreCase);
+            url = end > 0 ? url.Remove(start, end - start) : url = url.Remove(start);
+            return url.Insert(start, startIndex.ToString(CultureInfo.InvariantCulture));
         }
-    }
 
-    // Extends the class XPathNavigator with extra methods, for example:
-    //
-    //   // Always receives a string; regardless the XPath existence.
-    //   var value = navigator.SelectSingleNode("Value").GetSafeValue();
-    static class XPathNavigatorExtension {
-
-        // Returns the textual value of the element the navigator points to. If the navigator
-        // itself or the value of the element are null an empty string is returned. Whitespace
-        // at the the beginning and at the end of the returned value is always trimmed.
-        public static string GetSafeValue(this XPathNavigator navigator) {
-            if (navigator != null) {
-                var value = navigator.Value;
-                if (value != null)
-                    return value.Trim();
-            }
-            return "";
+        // Writes information about the error to the response output in the HTML format.
+        void FormatError(Exception exception, HtmlTextWriter writer) {
+            writer.WriteFullBeginTag("html");
+            // Make the title of the page in the browser caption a short constant.
+            writer.WriteFullBeginTag("head");
+            writer.WriteFullBeginTag("title");
+            writer.WriteEncodedText("Error");
+            writer.WriteEndTag("title");
+            writer.WriteEndTag("head");
+            // Print a title, the topmost exception message and the complete stacktrace below.
+            writer.WriteFullBeginTag("body");
+            writer.WriteFullBeginTag("h3");
+            writer.WriteEncodedText("The Search Failed");
+            writer.WriteEndTag("h3");
+            writer.WriteFullBeginTag("p");
+            writer.WriteEncodedText(exception.Message);
+            writer.WriteEndTag("p");
+            writer.WriteFullBeginTag("p");
+            writer.WriteFullBeginTag("small");
+            var stackTrace = exception.ToString().Replace(Environment.NewLine, "<br>");
+            writer.WriteEncodedText(stackTrace);
+            writer.WriteEndTag("small");
+            writer.WriteEndTag("p");
+            writer.WriteEndTag("body");
+            writer.WriteEndTag("html");
         }
     }
 }
