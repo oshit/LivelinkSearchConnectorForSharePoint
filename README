@@ -37,7 +37,7 @@ SEARCH URL TEMPLATE EXAMPLE
     http://sparepoint/_layouts/LivelinkOpenSearch/ExecuteQuery?
     query={searchTerms}&targetAppID=myserver&loginPattern=%7Buser:lc%7D&
 	livelinkUrl=http%3A%2F%2Fmyserver%2Flivelink%2Fllisapi.dll&count={count}&
-    startIndex={startIndex}&extraParams=lookfor1%3Dallwords&
+    startIndex={startIndex}&extraParams=lookfor1%3Dallwords%26hhterms%3Dtrue&
 	maxSummaryLength=185&ignoreSSLWarnings=true&inputEncoding={inputEncoding}&
 	outputEncoding={outputEncoding}&language={language}
 
@@ -64,7 +64,7 @@ SEARCH URL TEMPLATE EXAMPLE
     count             - {count}
                         To be replaced by the maximum hit count to return
                         which is usually the result page size.
-    extraParams       - lookfor1=allwords
+    extraParams       - lookfor1=allwords&hhterms=true
                         URL query suffix to be sent to Livelink as a part of
                         the search query refining the query execution.
     maxSummaryLength  - 185
@@ -168,8 +168,10 @@ URL PARAMETERS
     ExtraParams (string)
       Additional URL query string to append to the Livelink XML Search API
       URL. The string should not start with ampersand and will be appended
-      as-is. For example, the value "lookfor1=allwords" will require returning
-      only those results where all entered search terms can be found.
+      as-is. For example, the value "lookfor1=allwords&hhterms=true"
+      requires returning only those results where all entered search terms
+      can be found and enables highlighting the search terms in the document
+      summary displayed together with the search hit.
 
     MaxSummaryLength (integer)
       Can limit the maximum length of the textual summary that is displayed

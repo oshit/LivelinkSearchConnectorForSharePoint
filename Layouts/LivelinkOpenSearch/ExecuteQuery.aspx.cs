@@ -31,14 +31,14 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
     //   LoginPattern      - {user:lc}
     //   StartIndex        - 0
     //   Count             - 10
-    //   ExtraParams       - lookfor1=allwords
+    //   ExtraParams       - lookfor1=allwords&hhterms=true
     //   MaxSummaryLength  - 185
     //   IgnoreSSLWarnings - true
     //
     //   http://sparepoint/_layouts/LivelinkOpenSearch/ExecuteQuery?query=XML+Search&
     //   livelinkUrl=http%3A%2F%2Fmyserver%2Flivelink%2Fllisapi.dll&targetAppID=myserver&
-    //   loginPattern=%7Buser:lc%7D&startIndex=0&count=10&extraParams=lookfor1%3Dallwords&
-    //   maxSummaryLength=185&ignoreSSLWarnings=true
+    //   loginPattern=%7Buser:lc%7D&startIndex=0&count=10&extraParams=lookfor1%3Dallwords
+    //   %26hhterms%3Dtrue&maxSummaryLength=185&ignoreSSLWarnings=true
     //
     // Notice that some parameters are URL parts and should be URL encoded so that this page
     // gets them correctly when it is called. The parameter LoginPattern is URL encoded too;
@@ -117,8 +117,9 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
         // Additional URL query string to append to the Livelink XML Search API URL.
         // The string should not start with ampersand and will be appended as-is.
-        // For example, the value "lookfor1=allwords" will require returning only those
-        // results where all entered search terms can be found.
+        // For example, the value "lookfor1=allwords&hhterms=true" requires returning only those
+        // results where all entered search terms can be found and enables highlighting the search
+        // terms in the document summary displayed together with the search hit.
         string ExtraParams { get; set; }
 
         // Can limit the maximum length of the textual summary that is displayed below a search

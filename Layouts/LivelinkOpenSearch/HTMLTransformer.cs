@@ -49,12 +49,12 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             writer.WriteFullBeginTag("style");
             writer.WriteEncodedText(@"
 body { font-family: Arial, sans-serif }
-.summary, .data { margin-top: 0.3em }
-.data { color: green }
+.summary { margin-top: 0.5em }
+.data { margin-top: 0.3em; color: green }
 .summary, .note, .data { font-size: 85% }
-td { padding-right: 0.2em }
+td { padding-right: 0.3em }
 dl { margin-top: 1em }
-dt { margin-top: 1em; margin-bottom: 0.3em }
+dt { margin-top: 1em }
 dd { margin-left: 0 }
 ");
             writer.WriteEncodedText(SearchUrl.Host);
@@ -92,6 +92,15 @@ dd { margin-left: 0 }
             if (hits.Count > 0) {
                 writer.WriteFullBeginTag("dl");
                 foreach (XPathNavigator hit in hits) {
+                    // Although no hits are returned there is one element SearchResult coming
+                    // containing the text "Sorry, no results were found".
+                    var name = hit.SelectSingleNode("OTName");
+                    if (name == null) {
+                        writer.WriteFullBeginTag("dt");
+                        writer.WriteEncodedText(hit.GetSafeValue());
+                        writer.WriteEndTag("dt");
+                        break;
+                    }
                     writer.WriteFullBeginTag("dt");
                     writer.WriteFullBeginTag("table");
                     writer.WriteFullBeginTag("tr");
@@ -108,7 +117,6 @@ dd { margin-left: 0 }
                         writer.WriteEndTag("td");
                         writer.WriteFullBeginTag("td");
                     }
-                    var name = hit.SelectSingleNode("OTName");
                     // OTName should always be present but just be on the safe side here.
                     if (name != null) {
                         writer.WriteBeginTag("a");
@@ -139,7 +147,8 @@ dd { margin-left: 0 }
                     var summary = hit.SelectSingleNode("OTSummary").GetSafeValue();
                     if (MaxSummaryLength > 0 && summary.Length > MaxSummaryLength)
                         summary = summary.Substring(0, MaxSummaryLength) + " ...";
-                    writer.WriteEncodedText(summary);
+                    summary = summary.Replace("<HH>", "<b>").Replace("</HH>", "</b>");
+                    writer.Write(summary);
                     writer.WriteEndTag("div");
                     writer.WriteBeginTag("div");
                     writer.WriteAttribute("class", "data", true);

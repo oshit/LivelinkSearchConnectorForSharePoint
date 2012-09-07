@@ -40,7 +40,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             if (User != null)
                 result.Append("&userLogin=").Append(HttpUtility.UrlEncode(User));
             if (startIndex > 0)
-                result.Append("&startat=").Append(startIndex);
+                result.Append("&startat=").Append(startIndex + 1);
             if (count > 0)
                 result.Append("&gofor=").Append(count);
             if (!string.IsNullOrEmpty(AdditionalParameters))
@@ -53,15 +53,42 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         public static string ConvertToBrowserUsage(string query) {
             if (query == null)
                 throw new ArgumentNullException("query");
-            var start = query.IndexOf("&userLogin=");
+            var start = query.IndexOf("&userLogin=", StringComparison.InvariantCultureIgnoreCase);
+            if (start < 0)
+                start = query.IndexOf("?userLogin=", StringComparison.InvariantCultureIgnoreCase);
             if (start >= 0) {
                 var end = query.IndexOf('&', start + 11);
                 if (end >= 0)
                     query = query.Remove(start, end - start);
                 else
-                    query.Remove(start);
+                    query = query.Remove(start);
             }
-            return query.Replace("&outputformat=xml", "");
+            start = query.IndexOf("&outputformat=xml",
+                StringComparison.InvariantCultureIgnoreCase);
+            if (start > 0) {
+                query = query.Remove(start, 17);
+            } else if (query.StartsWith("?outputformat=xml",
+                        StringComparison.InvariantCultureIgnoreCase)) {
+                query = query.Remove(0, 17);
+                if (query.Length > 0)
+                    query = "?" + query.Substring(1);
+            }
+            return query;
+        }
+
+        // Takes a URL query of a Livelink search request and returns the size of the search
+        // results page or zero if it is not defined.
+        public static string GetRequestedItemCount(string query) {
+            if (query == null)
+                throw new ArgumentNullException("query");
+            var start = query.IndexOf("&gofor=", StringComparison.InvariantCultureIgnoreCase);
+            if (start < 0)
+                start = query.IndexOf("?gofor=", StringComparison.InvariantCultureIgnoreCase);
+            if (start < 0)
+                return null;
+            start += 7;
+            var end = query.IndexOf('&', start);
+            return end >= 0 ? query.Substring(start, end - start) : query.Substring(start);
         }
     }
 }

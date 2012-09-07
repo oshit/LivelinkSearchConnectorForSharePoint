@@ -82,6 +82,9 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 writer.Write("</os:totalResults>");
                 writer.Write("<os:startIndex>");
                 var start = info.SelectSingleNode("CurrentStartAt").GetSafeValue();
+                int startAt = 0;
+                if (!string.IsNullOrEmpty(start))
+                    startAt = int.Parse(start, CultureInfo.InvariantCulture) - 1;
                 writer.Write(start);
                 writer.Write("</os:startIndex>");
                 writer.Write("<os:itemsPerPage>");
@@ -104,18 +107,22 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             // The search hits follow not encapsulated in an XML element.
             var hits = navigator.Select("/Output/SearchResults/SearchResult");
             foreach (XPathNavigator hit in hits) {
+                // Although no hits are returned there is one element SearchResult coming
+                // containing the text "Sorry, no results were found".
+                var name = hit.SelectSingleNode("OTName");
+                if (name == null)
+                    break;
                 writer.Write("<item>");
                 // The title of the hit is made of the Livelink object name which is usually
                 // the file name for documents.
                 writer.Write("<title>");
                 // OTName element can have language-dependent sub-elements; take just the body.
-                var title = hit.SelectSingleNode("OTName/text()").GetSafeValue();
+                var title = name.SelectSingleNode("text()").GetSafeValue();
                 writer.WriteEncodedText(title);
                 writer.Write("</title>");
                 // The link points to the Livelink object's viewing URL which is usually
                 // the overview page with basic properties and a download link.
                 writer.Write("<link>");
-                var name = hit.SelectSingleNode("OTName");
                 // OTName should always be present but just be on the safe side here.
                 if (name != null) {
                     var url = urlBase + name.GetAttribute("ViewURL", "");
@@ -130,6 +137,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 var summary = hit.SelectSingleNode("OTSummary").GetSafeValue();
                 if (MaxSummaryLength > 0 && summary.Length > MaxSummaryLength)
                     summary = summary.Substring(0, MaxSummaryLength) + " ...";
+                summary = summary.Replace("<HH>", "<b>").Replace("</HH>", "</b>");
                 writer.WriteEncodedText(summary);
                 writer.Write("</description>");
                 // Publishing date should be the last modificattion time but Livelink returns
