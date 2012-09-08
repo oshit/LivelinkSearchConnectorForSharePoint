@@ -126,7 +126,7 @@ if (!$Description) {
     $Description = "Searches content in the Enterprise Workspace of the Livelink server at $hostName."
     Write-Verbose "Description: $Description"
 }
-if (!$ExtraParams) {
+if (!$ExtraParams -or $ExtraParams -eq '') {
     $params = 'lookfor1=allwords&fullTextMode=allwords&hhterms=true'
     Write-Verbose "ExtraParams: $ExtraParams"
 	$params = [Web.HttpUtility]::UrlEncode($params)
