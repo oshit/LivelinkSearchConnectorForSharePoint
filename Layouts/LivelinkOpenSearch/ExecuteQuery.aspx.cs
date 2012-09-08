@@ -31,14 +31,15 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
     //   LoginPattern      - {user:lc}
     //   StartIndex        - 0
     //   Count             - 10
-    //   ExtraParams       - lookfor1=allwords&hhterms=true
+    //   ExtraParams       - lookfor1=allwords&fullTextMode=allwords&hhterms=true
     //   MaxSummaryLength  - 185
     //   IgnoreSSLWarnings - true
     //
     //   http://sparepoint/_layouts/LivelinkOpenSearch/ExecuteQuery?query=XML+Search&
     //   livelinkUrl=http%3A%2F%2Fmyserver%2Flivelink%2Fllisapi.dll&targetAppID=myserver&
     //   loginPattern=%7Buser:lc%7D&startIndex=0&count=10&extraParams=lookfor1%3Dallwords
-    //   %26hhterms%3Dtrue&maxSummaryLength=185&ignoreSSLWarnings=true
+    //   %26fullTextMode%3Dallwords&%26hhterms%3Dtrue&maxSummaryLength=185&
+    //   ignoreSSLWarnings=true
     //
     // Notice that some parameters are URL parts and should be URL encoded so that this page
     // gets them correctly when it is called. The parameter LoginPattern is URL encoded too;
