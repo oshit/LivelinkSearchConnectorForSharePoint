@@ -82,6 +82,10 @@
 .PARAMETER IgnoreSSLWarnings
     Accepts HTTPS responses from a Livelink server with invalid SSL
     certificate.
+.PARAMETER MaxSummaryLength
+    Limits the maximum length of the textual summary that is displayed
+    below a search hit to give a hint what is the document about. If less
+    than zero the text is not limited. Default: 185.
 .PARAMETER NoLogo
     Suppresses printing the version and license information on the console
     when the script executions starts.
@@ -168,6 +172,9 @@ Param(
     [Parameter(HelpMessage = 'Accepts HTTPS responses from a Livelink server with invalid SSL certificate.')]
     [switch] $IgnoreSSLWarnings,
 
+    [Parameter(HelpMessage = 'Limits the maximum length of the textual summary that is displayed below a search hit to give a hint what is the document about. If less than zero the text is not limited. Default: 185')]
+    [int] $MaxSummaryLength,
+
     [Parameter(HelpMessage = 'Suppresses printing the version and license information on the console when the script executions starts.')]
     [Alias('q')]
     [switch] $NoLogo
@@ -214,6 +221,10 @@ if (!$ExtraParams) {
     $ExtraParams = 'lookfor1=allwords&fullTextMode=allwords&hhterms=true'
     Write-Verbose "ExtraParams: $ExtraParams"
 }
+if (!$MaxSummaryLength) {
+    $MaxSummaryLength = 185
+    Write-Verbose "MaxSummaryLength: $MaxSummaryLength"
+}
 
 # Normalize parameter values to fix possible user input errors.
 $ConnectorURL = $ConnectorURL.Trim().TrimEnd('/')
@@ -237,17 +248,21 @@ if ($IgnoreSSLWarnings) {
 } else {
     $certification = ''
 }
+if ($MaxSummaryLength > 0) {
+    $limit = "maxSummaryLength=$MaxSummaryLength&"
+} else {
+    $limit = ''
+}
 $urlTemplate = "$ConnectorURL/ExecuteQuery.aspx?query={searchTerms}&" +
     "livelinkUrl=$([Web.HttpUtility]::UrlEncode($LivelinkURL))&" +
     "$authentication&count={count}&startIndex={startIndex}&extraParams=" +
-    "$([Web.HttpUtility]::UrlEncode($ExtraParams))&maxSummaryLength=185&" +
+    "$([Web.HttpUtility]::UrlEncode($ExtraParams))&$limit" +
     "$($certification)inputEncoding={inputEncoding}&" +
     "outputEncoding={outputEncoding}&language={language}"
 Write-Verbose "SearchURLTemplate: $urlTemplate"
 
 # Generate the OSDX file content.
-$content = @"
-<?xml version="1.0" encoding="UTF-8"?>
+$content = @"<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
   <ShortName>$([Web.HttpUtility]::HtmlEncode($ShortName))</ShortName>
   <LongName>$([Web.HttpUtility]::HtmlEncode($LongName))</LongName>
@@ -268,8 +283,7 @@ $content = @"
       <ms-ose:Property schema="http://schemas.microsoft.com/windows/2008/propertynamespace" name="System.PropList.ContentViewModeForSearch">prop:~System.ItemNameDisplay;System.LayoutPattern.PlaceHolder;~System.ItemPathDisplay;~System.Search.AutoSummary;System.LayoutPattern.PlaceHolder;System.LayoutPattern.PlaceHolder;System.LayoutPattern.PlaceHolder</ms-ose:Property>
     </ms-ose:PropertyDefaultValues>
   </ms-ose:ResultsProcessing>
-</OpenSearchDescription>
-"@
+</OpenSearchDescription>"@
 
 # Write the OSDX file or prints its content on the console.
 if ($OutputFile) {
