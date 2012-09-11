@@ -9,6 +9,6 @@
 
 namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
-    public partial class ExecuteQueryPage {
+    public partial class GetOSDXPage {
     }
 }

@@ -1,11 +1,7 @@
 ﻿using System;
-using System.Globalization;
 using System.IO;
-using System.Net;
 using System.Web.UI;
 using System.Xml.XPath;
-using Microsoft.SharePoint;
-using Microsoft.SharePoint.WebControls;
 
 namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
@@ -28,14 +24,20 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         // to get the Livelink search results (in HTML) that would be processed by this class.
         protected Uri SearchUrl { get; private set; }
 
+        // The URL of the OpenSearch descriptor (OSDX) file.
+        protected string DescriptorUrl { get; private set; }
+
         // Constructor. About the parameters, see the properties above.
-        protected Transformer(string query, string searchUrl) {
+        protected Transformer(string query, string searchUrl, string descriptorUrl) {
             if (query == null)
                 throw new ArgumentNullException("query");
             if (searchUrl == null)
                 throw new ArgumentNullException("searchUrl");
+            if (descriptorUrl == null)
+                throw new ArgumentNullException("descriptorUrl");
             Query = query;
             SearchUrl = new Uri(searchUrl);
+            DescriptorUrl = descriptorUrl;
         }
 
         // Transforms the Livelink XML Search results to the format defined by the descendant

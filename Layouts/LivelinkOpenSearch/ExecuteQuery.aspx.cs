@@ -2,9 +2,9 @@
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Web;
 using System.Web.UI;
 using Microsoft.SharePoint;
-using Microsoft.SharePoint.WebControls;
 
 namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
@@ -35,7 +35,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
     //   MaxSummaryLength  - 185
     //   IgnoreSSLWarnings - true
     //
-    //   http://sparepoint/_layouts/LivelinkOpenSearch/ExecuteQuery?query=XML+Search&
+    //   http://sharepoint/_layouts/LivelinkOpenSearch/ExecuteQuery.aspx?query=XML+Search&
     //   livelinkUrl=http%3A%2F%2Fmyserver%2Flivelink%2Fllisapi.dll&targetAppID=myserver&
     //   loginPattern=%7Buser:lc%7D&startIndex=0&count=10&extraParams=lookfor1%3Dallwords
     //   %26fullTextMode%3Dallwords&%26hhterms%3Dtrue&maxSummaryLength=185&
@@ -45,7 +45,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
     // gets them correctly when it is called. The parameter LoginPattern is URL encoded too;
     // some expressions in braces could be mistakenly resolved by the search federator before
     // it calls the URL.
-    public partial class ExecuteQueryPage : LayoutsPageBase {
+    public partial class ExecuteQueryPage : SearchConnectorPageBase {
 
         // Search terms in the syntax recognized by the Livelink XML Search API. It can be
         // a list of words that you want to be found in the returned search results for,
@@ -146,23 +146,29 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         // of the reponse: text/xml or text/html.
         OutputFormat Format { get; set; }
 
+        // Errors occurring during the search are reported by HTTP error code 500 by default.
+        // This parameter makes the error message be returned as single search hit for OpenSearch
+        // clients that do not show HTTP errors to the user.
+        bool ReportErrorAsHit { get; set; }
+
         // Reads and checks the provided URL parameters, performs the Livelink XML Search
         // query, transforms its results to RSS 2.0 and writes the content to the response
         // output as text/xml. If anything fails the HTTP status code 500 will be returned
         // in the response with the error message in the status description.
         protected override void Render(HtmlTextWriter writer) {
+            string searchUrl = null;
             try {
                 ParseUrl();
                 if (IgnoreSSLWarnings)
                     ServicePointManager.ServerCertificateValidationCallback =
                         (sender, cert, chain, sslError) => true;
                 var query = GetQuery();
+                searchUrl = LivelinkUrl + "?" + SearchHelper.ConvertToBrowserUsage(query);
                 using (var results = GetResults(query)) {
-                    var searchUrl = LivelinkUrl + "?" + SearchHelper.ConvertToBrowserUsage(query);
                     Transformer transformer;
                     switch (Format) {
                         case OutputFormat.XML:
-                            transformer = new XMLTransformer(Query, searchUrl)
+                            transformer = new XMLTransformer(Query, searchUrl, DescriptorUrl)
                                 { MaxSummaryLength = MaxSummaryLength };
                             Response.ContentType = "text/xml";
                             break;
@@ -171,7 +177,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                                 GetOtherPageUrl(false) : null;
                             var nextUrl = Count > 0 ? GetOtherPageUrl(true) : null;
                             transformer = new HTMLTransformer(Query, searchUrl,
-                                previousUrl, nextUrl) { MaxSummaryLength = MaxSummaryLength };
+									previousUrl, nextUrl, DescriptorUrl)
+								{ MaxSummaryLength = MaxSummaryLength };
                             Response.ContentType = "text/html";
                             break;
                         default:
@@ -189,7 +196,9 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 // will be able to see the reponse in the browser.
                 if (Format == OutputFormat.HTML) {
                     Response.ContentType = "text/html";
-                    FormatError(exception, writer);
+                    FormatHtmlError(exception, writer);
+                } else if (ReportErrorAsHit) {
+                    FormatXmlError(exception, searchUrl, writer);
                 } else {
                     Response.StatusCode = 500;
                     Response.StatusDescription = exception.Message;
@@ -205,6 +214,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             var format = Request.QueryString["format"];
             if (!string.IsNullOrEmpty(format))
                 Format = (OutputFormat) Enum.Parse(typeof(OutputFormat), format, true);
+            ReportErrorAsHit = "true".Equals(Request.QueryString["reportErrorAsHit"],
+                StringComparison.InvariantCultureIgnoreCase);
             Query = Request.QueryString["query"];
             if (string.IsNullOrEmpty(Query))
                 throw new ApplicationException("Search query was empty.");
@@ -303,8 +314,33 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             return url.Insert(start, startIndex.ToString(CultureInfo.InvariantCulture));
         }
 
+        // Writes information about the error to the response output in the XML/RSS format.
+        void FormatXmlError(Exception exception, string searchUrl, HtmlTextWriter writer) {
+            var host = searchUrl != null ? HttpUtility.HtmlEncode(new Uri(searchUrl).Host) :
+                Request.Url.Host;
+            var link = searchUrl != null ? HttpUtility.HtmlEncode(searchUrl) :
+                HttpUtility.HtmlEncode(Request.Url.AbsoluteUri);
+            writer.Write(string.Format(@"<?xml version=""1.0"" encoding=""UTF-8""?>
+ <rss version=""2.0"" xmlns:openSearch=""http://a9.com/-/spec/opensearch/1.1/"">
+   <channel>
+     <title>Livelink Enterprise at {0}</title>
+     <link>{1}</link>
+     <description>Search results of the query executed against the Enterprise Workspace of the Livelink server at {0}.</description>
+     <openSearch:totalResults>1</openSearch:totalResults>
+     <openSearch:startIndex>1</openSearch:startIndex>
+     <openSearch:itemsPerPage>1</openSearch:itemsPerPage>
+     <item>
+       <title>{2}</title>
+       <description>{3}</description>
+     </item>
+   </channel>
+ </rss>", host, link, HttpUtility.HtmlEncode(exception.Message),
+                HttpUtility.HtmlEncode(exception.ToString())));
+        }
+
+
         // Writes information about the error to the response output in the HTML format.
-        void FormatError(Exception exception, HtmlTextWriter writer) {
+        void FormatHtmlError(Exception exception, HtmlTextWriter writer) {
             writer.WriteFullBeginTag("html");
             // Make the title of the page in the browser caption a short constant.
             writer.WriteFullBeginTag("head");
@@ -328,6 +364,23 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             writer.WriteEndTag("p");
             writer.WriteEndTag("body");
             writer.WriteEndTag("html");
+        }
+
+        // Returns the URL of the OpenSearch descriptor (OSDX) file.
+        string DescriptorUrl {
+            get {
+				var livelinkUri = new Uri(LivelinkUrl);
+				var authentication = UseSSO ? "useSSO=true" : string.Format(
+					"targetAppID={0}&loginPattern={1}", HttpUtility.UrlEncode(TargetAppID),
+					HttpUtility.UrlEncode(LoginPattern));
+				var limit = MaxSummaryLength > 0 ? string.Format("maxSummaryLength={0}&",
+					MaxSummaryLength) : "";
+				var certification = IgnoreSSLWarnings ? "ignoreSSLWarnings=true&" : "";
+				return string.Format(
+					"{0}/GetOSDX.aspx?livelinkUrl={1}&extraParams={2}&{3}{4}{5}",
+					PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
+                    HttpUtility.UrlEncode(ExtraParams), limit, certification, authentication);
+            }
         }
     }
 }

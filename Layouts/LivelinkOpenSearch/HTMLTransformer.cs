@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
-using System.Net;
+using System.Web;
 using System.Web.UI;
 using System.Xml.XPath;
-using Microsoft.SharePoint;
-using Microsoft.SharePoint.WebControls;
 
 namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
@@ -19,8 +17,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
         // Constructor. About the parameters, see the protected properties in the parent class
         // and also the properties in this class declared above.
-        public HTMLTransformer(string query, string searchUrl, string previousUrl, string nextUrl)
-                : base(query, searchUrl) {
+        public HTMLTransformer(string query, string searchUrl, string previousUrl,
+                string nextUrl, string descriptorUrl) : base(query, searchUrl, descriptorUrl) {
             PreviousUrl = previousUrl;
             NextUrl = nextUrl;
         }
@@ -59,8 +57,36 @@ dd { margin-left: 0 }
 ");
             writer.WriteEncodedText(SearchUrl.Host);
             writer.WriteEndTag("style");
+            writer.WriteBeginTag("link");
+            writer.WriteAttribute("type", "application/opensearchdescription+xml");
+            writer.WriteAttribute("rel", "search");
+            writer.WriteAttribute("href", DescriptorUrl, true);
+            writer.WriteAttribute("title", "Search Results at " + SearchUrl.Host, true);
+            writer.Write(HtmlTextWriter.TagRightChar);
+            string startAt = null;
+            string actualPageSize = null;
+            string totalCount = null;
+            var info = navigator.SelectSingleNode("/Output/SearchResultsInformation");
+            if (info != null) {
+                startAt = info.SelectSingleNode("CurrentStartAt").GetSafeValue();
+                actualPageSize = info.SelectSingleNode("NumberResultsThisPage").GetSafeValue();
+                totalCount = info.SelectSingleNode("EstTotalResults").GetSafeValue();
+                writer.WriteBeginTag("meta");
+                writer.WriteAttribute("name", "totalResults");
+                writer.WriteAttribute("content", totalCount, true);
+                writer.Write(HtmlTextWriter.TagRightChar);
+                writer.WriteBeginTag("meta");
+                writer.WriteAttribute("name", "startIndex");
+                writer.WriteAttribute("content", startAt, true);
+                writer.Write(HtmlTextWriter.TagRightChar);
+                writer.WriteBeginTag("meta");
+                writer.WriteAttribute("name", "itemsPerPage");
+                writer.WriteAttribute("content", actualPageSize, true);
+                writer.Write(HtmlTextWriter.TagRightChar);
+            }
             writer.WriteEndTag("head");
             writer.WriteFullBeginTag("body");
+            // Page title: icon and caption.
             writer.WriteFullBeginTag("table");
             writer.WriteFullBeginTag("tr");
             writer.WriteFullBeginTag("td");
@@ -77,6 +103,7 @@ dd { margin-left: 0 }
             writer.WriteEndTag("td");
             writer.WriteEndTag("tr");
             writer.WriteEndTag("table");
+            // Note about the source of the search results.
             writer.WriteBeginTag("div");
             writer.WriteAttribute("class", "note", true);
             writer.Write(HtmlTextWriter.TagRightChar);
@@ -86,10 +113,26 @@ dd { margin-left: 0 }
             writer.Write(HtmlTextWriter.TagRightChar);
             writer.WriteEncodedText(SearchUrl.ToString());
             writer.WriteEndTag("a");
+            writer.WriteEncodedText(". The OSDX file for this search source can be ");
+            writer.WriteBeginTag("a");
+            writer.WriteAttribute("href", DescriptorUrl, true);
+            writer.Write(HtmlTextWriter.TagRightChar);
+            writer.WriteEncodedText("downloaded for your OpenSearch client");
+            writer.WriteEndTag("a");
+            writer.WriteEncodedText(" or ");
+            writer.WriteBeginTag("a");
+            writer.WriteAttribute("href", "#");
+            writer.WriteAttribute("onclick", string.Format(
+                "window.external.AddSearchProvider('{0}')",
+                HttpUtility.HtmlEncode(DescriptorUrl)));
+            writer.Write(HtmlTextWriter.TagRightChar);
+            writer.WriteEncodedText("installed in the browser");
+            writer.WriteEndTag("a");
             writer.WriteEncodedText(".");
             writer.WriteEndTag("div");
             var hits = navigator.Select("/Output/SearchResults/SearchResult");
             if (hits.Count > 0) {
+                // Search hits as definition list.
                 writer.WriteFullBeginTag("dl");
                 foreach (XPathNavigator hit in hits) {
                     // Although no hits are returned there is one element SearchResult coming
@@ -198,8 +241,8 @@ dd { margin-left: 0 }
                     writer.WriteEndTag("dd");
                 }
                 writer.WriteEndTag("dl");
-                var info = navigator.SelectSingleNode("/Output/SearchResultsInformation");
                 if (info != null) {
+                    // Search results paging control.
                     writer.WriteFullBeginTag("center");
                     writer.WriteFullBeginTag("table");
                     writer.WriteFullBeginTag("tr");
@@ -217,16 +260,13 @@ dd { margin-left: 0 }
                     }
                     writer.WriteFullBeginTag("td");
                     writer.WriteEncodedText("Items ");
-                    var startAt = info.SelectSingleNode("CurrentStartAt").GetSafeValue();
                     writer.Write(startAt);
                     writer.Write(" - ");
-                    var actualPageSize = info.SelectSingleNode(
-                        "NumberResultsThisPage").GetSafeValue();
                     var endAt = int.Parse(startAt, CultureInfo.InvariantCulture) +
                         int.Parse(actualPageSize, CultureInfo.InvariantCulture) - 1;
                     writer.Write(endAt);
                     writer.Write(" of ");
-                    writer.Write(info.SelectSingleNode("EstTotalResults").GetSafeValue());
+                    writer.Write(totalCount);
                     writer.WriteEndTag("td");
                     if (NextUrl != null) {
                         var pageSize = SearchHelper.GetRequestedItemCount(SearchUrl.Query);

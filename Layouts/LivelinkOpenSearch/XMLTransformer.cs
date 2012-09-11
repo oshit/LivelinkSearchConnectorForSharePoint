@@ -1,18 +1,16 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
-using System.Net;
 using System.Web.UI;
 using System.Xml.XPath;
-using Microsoft.SharePoint;
-using Microsoft.SharePoint.WebControls;
 
 namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 
     class XMLTransformer : Transformer {
 
         // Constructor. About the parameters, see the protected properties in the parent class.
-        public XMLTransformer(string query, string searchUrl) : base(query, searchUrl) {}
+        public XMLTransformer(string query, string searchUrl, string descriptorUrl) :
+            base(query, searchUrl, descriptorUrl) {}
 
         // Transforms the Livelink XML Search results to the RSS 2.0 schema specialized
         // for OpenSearch 1.1 and writes it to the response output.
@@ -45,6 +43,13 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             writer.WriteEncodedText(": ");
             writer.WriteEncodedText(Query);
             writer.Write("</title>");
+            writer.Write("<link rel=\"search\" type=\"application/opensearchdescription+xml\" ");
+            writer.Write("href=\"");
+            writer.WriteEncodedText(DescriptorUrl);
+            writer.Write("\" title=\"");
+            writer.WriteEncodedText("Livelink Enterprise at ");
+            writer.WriteEncodedText(SearchUrl.Host);
+            writer.Write("\" />");
             // The link should reproduce these query results if used interactively in the browser.
             writer.Write("<link>");
             writer.WriteEncodedText(SearchUrl.ToString());

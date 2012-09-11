@@ -54,6 +54,7 @@
     <Reference Include="System.XML" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Layouts\LivelinkOpenSearch\HTMLTransformer.cs" />
     <Compile Include="Layouts\LivelinkOpenSearch\LoginMapper.cs" />
     <Compile Include="Layouts\LivelinkOpenSearch\SearchHelper.cs" />
     <Compile Include="Layouts\LivelinkOpenSearch\CredentialStore.cs" />
@@ -64,8 +65,20 @@
     <Compile Include="Layouts\LivelinkOpenSearch\ExecuteQuery.aspx.designer.cs">
       <DependentUpon>ExecuteQuery.aspx.cs</DependentUpon>
     </Compile>
+    <Compile Include="Layouts\LivelinkOpenSearch\GetOSDX.aspx.cs">
+      <DependentUpon>GetOSDX.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Layouts\LivelinkOpenSearch\GetOSDX.aspx.designer.cs">
+      <DependentUpon>GetOSDX.aspx.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Layouts\LivelinkOpenSearch\Transformer.cs" />
     <Compile Include="Layouts\LivelinkOpenSearch\WebClient.cs" />
+    <Compile Include="Layouts\LivelinkOpenSearch\XMLTransformer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Layouts\LivelinkOpenSearch\SearchConnectorPageBase.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="key.snk" />
@@ -81,10 +94,13 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Features\" />
+    <Content Include="Layouts\LivelinkOpenSearch\ExecuteQuery.aspx" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Layouts\LivelinkOpenSearch\ExecuteQuery.aspx" />
+    <Content Include="Layouts\LivelinkOpenSearch\GetOSDX.aspx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Features\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

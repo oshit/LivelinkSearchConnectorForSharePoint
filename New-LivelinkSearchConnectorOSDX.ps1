@@ -248,7 +248,7 @@ if ($IgnoreSSLWarnings) {
 } else {
     $certification = ''
 }
-if ($MaxSummaryLength > 0) {
+if ($MaxSummaryLength -gt 0) {
     $limit = "maxSummaryLength=$MaxSummaryLength&"
 } else {
     $limit = ''
@@ -259,31 +259,43 @@ $urlTemplate = "$ConnectorURL/ExecuteQuery.aspx?query={searchTerms}&" +
     "$([Web.HttpUtility]::UrlEncode($ExtraParams))&$limit" +
     "$($certification)inputEncoding={inputEncoding}&" +
     "outputEncoding={outputEncoding}&language={language}"
+$urlOSDX = "$ConnectorURL/GetOSDX.aspx?" +
+    "livelinkUrl=$([Web.HttpUtility]::UrlEncode($LivelinkURL))&" +
+    "$authentication&$limit$($certification)extraParams=" +
+    "$([Web.HttpUtility]::UrlEncode($ExtraParams))";
 Write-Verbose "SearchURLTemplate: $urlTemplate"
+Write-Verbose "OSDXURL: $urlOSDX"
 
 # Generate the OSDX file content.
-$content = @"<?xml version="1.0" encoding="UTF-8"?>
+$content = @"
+<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
   <ShortName>$([Web.HttpUtility]::HtmlEncode($ShortName))</ShortName>
   <LongName>$([Web.HttpUtility]::HtmlEncode($LongName))</LongName>
   <InternalName xmlns="http://schemas.microsoft.com/Search/2007/location">$([Web.HttpUtility]::HtmlEncode($InternalName))</InternalName>
   <Description>$([Web.HttpUtility]::HtmlEncode($Description))</Description>
   <Image height="32" width="32" type="image/png">$([Web.HttpUtility]::HtmlEncode($urlBase))/img/style/images/app_content_server32_b8.png</Image>
-  <Url type="application/rss+xml" template="$([Web.HttpUtility]::HtmlEncode($urlTemplate))"/>
+  <Url type="application/rss+xml" rel="results" template="$([Web.HttpUtility]::HtmlEncode($urlTemplate))"/>
   <Url type="text/html" template="$([Web.HttpUtility]::HtmlEncode($urlTemplate))&amp;format=html"/>
+  <Url type="application/opensearchdescription+xml" rel="self" template="$([Web.HttpUtility]::HtmlEncode($urlOSDX))"/>
+  <Tags>Livelink OpenSearch</Tags>
+  <Query role="example" searchTerms="livelink" />
+  <AdultContent>false</AdultContent>
   <Developer>Ferdinand Prantl</Developer>
   <Contact>prantlf@gmail.com</Contact>
   <Attribution>Copyright (c) 2012 Ferdinand Prantl, All rights reserved.</Attribution>
   <SyndicationRight>Open</SyndicationRight>
   <InputEncoding>UTF-8</InputEncoding>
   <OutputEncoding>UTF-8</OutputEncoding>
+  <Language>*</Language>
   
   <ms-ose:ResultsProcessing format="application/rss+xml" xmlns:ms-ose="http://schemas.microsoft.com/opensearchext/2009/">
     <ms-ose:PropertyDefaultValues>
       <ms-ose:Property schema="http://schemas.microsoft.com/windows/2008/propertynamespace" name="System.PropList.ContentViewModeForSearch">prop:~System.ItemNameDisplay;System.LayoutPattern.PlaceHolder;~System.ItemPathDisplay;~System.Search.AutoSummary;System.LayoutPattern.PlaceHolder;System.LayoutPattern.PlaceHolder;System.LayoutPattern.PlaceHolder</ms-ose:Property>
     </ms-ose:PropertyDefaultValues>
   </ms-ose:ResultsProcessing>
-</OpenSearchDescription>"@
+</OpenSearchDescription>
+"@
 
 # Write the OSDX file or prints its content on the console.
 if ($OutputFile) {
