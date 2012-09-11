@@ -86,6 +86,11 @@
     Limits the maximum length of the textual summary that is displayed
     below a search hit to give a hint what is the document about. If less
     than zero the text is not limited. Default: 185.
+.PARAMETER ReportErrorAsHit
+    Errors occurring during the search are reported by HTTP error code 500
+    by default. This parameter makes the error message be returned as
+    single search hit for OpenSearch clients that do not show HTTP errors
+    to the user.
 .PARAMETER NoLogo
     Suppresses printing the version and license information on the console
     when the script executions starts.
@@ -175,6 +180,9 @@ Param(
     [Parameter(HelpMessage = 'Limits the maximum length of the textual summary that is displayed below a search hit to give a hint what is the document about. If less than zero the text is not limited. Default: 185')]
     [int] $MaxSummaryLength,
 
+    [Parameter(HelpMessage = 'Makes the error message be returned as single search hit instead of returnung HTTP error code 500.')]
+    [switch] $ReportErrorAsHit,
+
     [Parameter(HelpMessage = 'Suppresses printing the version and license information on the console when the script executions starts.')]
     [Alias('q')]
     [switch] $NoLogo
@@ -253,17 +261,22 @@ if ($MaxSummaryLength -gt 0) {
 } else {
     $limit = ''
 }
+if ($ReportErrorAsHit -gt 0) {
+    $error = "reportErrorAsHit=true&"
+} else {
+    $error = ''
+}
 $urlTemplate = "$ConnectorURL/ExecuteQuery.aspx?query={searchTerms}&" +
     "livelinkUrl=$([Web.HttpUtility]::UrlEncode($LivelinkURL))&" +
     "$authentication&count={count}&startIndex={startIndex}&extraParams=" +
-    "$([Web.HttpUtility]::UrlEncode($ExtraParams))&$limit" +
+    "$([Web.HttpUtility]::UrlEncode($ExtraParams))&$limit$error" +
     "$($certification)inputEncoding={inputEncoding}&" +
     "outputEncoding={outputEncoding}&language={language}"
+Write-Verbose "SearchURLTemplate: $urlTemplate"
 $urlOSDX = "$ConnectorURL/GetOSDX.aspx?" +
     "livelinkUrl=$([Web.HttpUtility]::UrlEncode($LivelinkURL))&" +
-    "$authentication&$limit$($certification)extraParams=" +
+    "$authentication&$limit$error$($certification)extraParams=" +
     "$([Web.HttpUtility]::UrlEncode($ExtraParams))";
-Write-Verbose "SearchURLTemplate: $urlTemplate"
 Write-Verbose "OSDXURL: $urlOSDX"
 
 # Generate the OSDX file content.

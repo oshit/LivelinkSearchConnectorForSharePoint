@@ -96,6 +96,11 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         // summary by this parameter to never exceed the specified length.
         int MaxSummaryLength { get; set; }
 
+        // Errors occurring during the search are reported by HTTP error code 500 by default.
+        // This parameter makes the error message be returned as single search hit for OpenSearch
+        // clients that do not show HTTP errors to the user.
+        bool ReportErrorAsHit { get; set; }
+
         // Reads and checks the provided URL parameters, formats the OpenSearch descriptor
         // and writes it to the response output as text/xml. If anything fails the HTTP status
         // code 500 will be returned in the response with the error message in the status
@@ -134,6 +139,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
             var maxSummaryLength = Request.QueryString["maxSummaryLength"];
             if (!string.IsNullOrEmpty(maxSummaryLength))
                 MaxSummaryLength = int.Parse(maxSummaryLength, CultureInfo.InvariantCulture);
+            ReportErrorAsHit = "true".Equals(Request.QueryString["reportErrorAsHit"],
+                StringComparison.InvariantCultureIgnoreCase);
         }
 
         // Writes the OSDX content to the response output in the XML format.
@@ -144,17 +151,18 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 HttpUtility.UrlEncode(LoginPattern));
             var limit = MaxSummaryLength > 0 ? string.Format("maxSummaryLength={0}&",
                 MaxSummaryLength) : "";
+            var error = ReportErrorAsHit > 0 ? "reportErrorAsHit=true&" : "";
             var certification = IgnoreSSLWarnings ? "ignoreSSLWarnings=true&" : "";
             var urlTemplate = string.Format(
                 "{0}/ExecuteQuery.aspx?query={{searchTerms}}&livelinkUrl={1}&" +
                 "{2}&count={{count}}&startIndex={{startIndex}}&extraParams=" +
-                "{3}&{4}{5}inputEncoding={{inputEncoding}}&" +
+                "{3}&{4}{5}{6}inputEncoding={{inputEncoding}}&" +
                 "outputEncoding={{outputEncoding}}&language={{language}}",
                 PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
-                authentication, HttpUtility.UrlEncode(ExtraParams), limit, certification);
+                authentication, HttpUtility.UrlEncode(ExtraParams), limit, error, certification);
 			var urlOSDX = string.Format("{0}/GetOSDX.aspx?livelinkUrl={1}&" +
-                "extraParams={2}&{3}{4}{5}", PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
-                HttpUtility.UrlEncode(ExtraParams), limit, certification, authentication);
+                "extraParams={2}&{3}{4}{5}{6}", PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
+                HttpUtility.UrlEncode(ExtraParams), limit, error, certification, authentication);
             writer.Write(string.Format(@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <OpenSearchDescription xmlns=""http://a9.com/-/spec/opensearch/1.1/"">
   <ShortName>Search Enterprise at {0}</ShortName>

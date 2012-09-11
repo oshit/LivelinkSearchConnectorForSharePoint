@@ -187,6 +187,12 @@ URL PARAMETERS
       and difficult to browse. You can trim the length of the displayed
       summary by this parameter to never exceed the specified length.
 
+    ReportErrorAsHit (boolean)
+      Errors occurring during the search are reported by HTTP error code 500
+      by default. This parameter makes the error message be returned as
+      single search hit for OpenSearch clients that do not show HTTP errors
+      to the user.
+
     Language (string)
       The preferred language for the search results.  It is currently unused.
 

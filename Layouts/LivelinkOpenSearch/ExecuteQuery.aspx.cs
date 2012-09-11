@@ -375,11 +375,13 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 					HttpUtility.UrlEncode(LoginPattern));
 				var limit = MaxSummaryLength > 0 ? string.Format("maxSummaryLength={0}&",
 					MaxSummaryLength) : "";
+				var error = ReportErrorAsHit > 0 ? "reportErrorAsHit=true&" : "";
 				var certification = IgnoreSSLWarnings ? "ignoreSSLWarnings=true&" : "";
 				return string.Format(
-					"{0}/GetOSDX.aspx?livelinkUrl={1}&extraParams={2}&{3}{4}{5}",
+					"{0}/GetOSDX.aspx?livelinkUrl={1}&extraParams={2}&{3}{4}{5}{6}",
 					PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
-                    HttpUtility.UrlEncode(ExtraParams), limit, certification, authentication);
+                    HttpUtility.UrlEncode(ExtraParams), limit, error, certification,
+                    authentication);
             }
         }
     }
