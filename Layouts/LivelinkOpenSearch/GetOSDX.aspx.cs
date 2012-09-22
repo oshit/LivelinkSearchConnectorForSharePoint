@@ -163,8 +163,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
 			var urlOSDX = string.Format("{0}/GetOSDX.aspx?livelinkUrl={1}&" +
                 "extraParams={2}&{3}{4}{5}{6}", PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
                 HttpUtility.UrlEncode(ExtraParams), limit, error, certification, authentication);
-            writer.Write(string.Format(@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<OpenSearchDescription xmlns=""http://a9.com/-/spec/opensearch/1.1/"">
+            writer.Write(string.Format(@"<OpenSearchDescription xmlns=""http://a9.com/-/spec/opensearch/1.1/"">
   <ShortName>Search Enterprise at {0}</ShortName>
   <LongName>Search Livelink Enterprise Workspace at {0}</LongName>
   <InternalName xmlns=""http://schemas.microsoft.com/Search/2007/location"">search_{0}</InternalName>
@@ -189,8 +188,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
       <ms-ose:Property schema=""http://schemas.microsoft.com/windows/2008/propertynamespace"" name=""System.PropList.ContentViewModeForSearch"">prop:~System.ItemNameDisplay;System.LayoutPattern.PlaceHolder;~System.ItemPathDisplay;~System.Search.AutoSummary;System.LayoutPattern.PlaceHolder;System.LayoutPattern.PlaceHolder;System.LayoutPattern.PlaceHolder</ms-ose:Property>
     </ms-ose:PropertyDefaultValues>
   </ms-ose:ResultsProcessing>
-</OpenSearchDescription>
-", HttpUtility.HtmlEncode(livelinkUri.Host),
+</OpenSearchDescription>", HttpUtility.HtmlEncode(livelinkUri.Host),
                 HttpUtility.HtmlEncode(livelinkUri.GetComponents(UriComponents.SchemeAndServer,
 					UriFormat.Unescaped)), HttpUtility.HtmlEncode(urlTemplate),
 					HttpUtility.HtmlEncode(urlOSDX)));

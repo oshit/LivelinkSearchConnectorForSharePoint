@@ -261,7 +261,7 @@ if ($MaxSummaryLength -gt 0) {
 } else {
     $limit = ''
 }
-if ($ReportErrorAsHit -gt 0) {
+if ($ReportErrorAsHit) {
     $error = "reportErrorAsHit=true&"
 } else {
     $error = ''
@@ -281,7 +281,6 @@ Write-Verbose "OSDXURL: $urlOSDX"
 
 # Generate the OSDX file content.
 $content = @"
-<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
   <ShortName>$([Web.HttpUtility]::HtmlEncode($ShortName))</ShortName>
   <LongName>$([Web.HttpUtility]::HtmlEncode($LongName))</LongName>
