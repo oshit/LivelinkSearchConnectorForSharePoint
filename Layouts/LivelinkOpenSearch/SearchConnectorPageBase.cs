@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.SharePoint.WebControls;
 
 namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {

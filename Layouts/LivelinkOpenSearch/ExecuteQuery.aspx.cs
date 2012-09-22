@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -177,8 +177,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                                 GetOtherPageUrl(false) : null;
                             var nextUrl = Count > 0 ? GetOtherPageUrl(true) : null;
                             transformer = new HTMLTransformer(Query, searchUrl,
-									previousUrl, nextUrl, DescriptorUrl)
-								{ MaxSummaryLength = MaxSummaryLength };
+                                    previousUrl, nextUrl, DescriptorUrl)
+                                { MaxSummaryLength = MaxSummaryLength };
                             Response.ContentType = "text/html";
                             break;
                         default:
@@ -369,17 +369,17 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         // Returns the URL of the OpenSearch descriptor (OSDX) file.
         string DescriptorUrl {
             get {
-				var livelinkUri = new Uri(LivelinkUrl);
-				var authentication = UseSSO ? "useSSO=true" : string.Format(
-					"targetAppID={0}&loginPattern={1}", HttpUtility.UrlEncode(TargetAppID),
-					HttpUtility.UrlEncode(LoginPattern));
-				var limit = MaxSummaryLength > 0 ? string.Format("maxSummaryLength={0}&",
-					MaxSummaryLength) : "";
-				var error = ReportErrorAsHit > 0 ? "reportErrorAsHit=true&" : "";
-				var certification = IgnoreSSLWarnings ? "ignoreSSLWarnings=true&" : "";
-				return string.Format(
-					"{0}/GetOSDX.aspx?livelinkUrl={1}&extraParams={2}&{3}{4}{5}{6}",
-					PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
+                var livelinkUri = new Uri(LivelinkUrl);
+                var authentication = UseSSO ? "useSSO=true" : string.Format(
+                    "targetAppID={0}&loginPattern={1}", HttpUtility.UrlEncode(TargetAppID),
+                    HttpUtility.UrlEncode(LoginPattern));
+                var limit = MaxSummaryLength > 0 ? string.Format("maxSummaryLength={0}&",
+                    MaxSummaryLength) : "";
+                var error = ReportErrorAsHit > 0 ? "reportErrorAsHit=true&" : "";
+                var certification = IgnoreSSLWarnings ? "ignoreSSLWarnings=true&" : "";
+                return string.Format(
+                    "{0}/GetOSDX.aspx?livelinkUrl={1}&extraParams={2}&{3}{4}{5}{6}",
+                    PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
                     HttpUtility.UrlEncode(ExtraParams), limit, error, certification,
                     authentication);
             }

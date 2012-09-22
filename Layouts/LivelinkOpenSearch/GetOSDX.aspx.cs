@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Web;
 using System.Web.UI;
@@ -160,7 +160,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 "outputEncoding={{outputEncoding}}&language={{language}}",
                 PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
                 authentication, HttpUtility.UrlEncode(ExtraParams), limit, error, certification);
-			var urlOSDX = string.Format("{0}/GetOSDX.aspx?livelinkUrl={1}&" +
+            var urlOSDX = string.Format("{0}/GetOSDX.aspx?livelinkUrl={1}&" +
                 "extraParams={2}&{3}{4}{5}{6}", PageUrlPath, HttpUtility.UrlEncode(LivelinkUrl),
                 HttpUtility.UrlEncode(ExtraParams), limit, error, certification, authentication);
             writer.Write(string.Format(@"<OpenSearchDescription xmlns=""http://a9.com/-/spec/opensearch/1.1/"">
@@ -190,8 +190,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
   </ms-ose:ResultsProcessing>
 </OpenSearchDescription>", HttpUtility.HtmlEncode(livelinkUri.Host),
                 HttpUtility.HtmlEncode(livelinkUri.GetComponents(UriComponents.SchemeAndServer,
-					UriFormat.Unescaped)), HttpUtility.HtmlEncode(urlTemplate),
-					HttpUtility.HtmlEncode(urlOSDX)));
+                    UriFormat.Unescaped)), HttpUtility.HtmlEncode(urlTemplate),
+                    HttpUtility.HtmlEncode(urlOSDX)));
         }
     }
 }

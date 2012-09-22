@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Security.Principal;
 using System.Text;
 using Microsoft.SharePoint;
@@ -64,8 +64,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 var identifier = new SecurityIdentifier(claim.Value);
                 login = identifier.Translate(typeof(NTAccount)).Value;
             } else {
-                // The claim type was not recognized. Are we feeling lucky? ;-)
-                login = claim.Value;
+                throw new ApplicationException(
+                    "No claim with either user name or SID was found to infer the login name from.");
             }
             // Here we assume either plain user name or a combination with the Windows domain.
             var parts = login.Split('\\');

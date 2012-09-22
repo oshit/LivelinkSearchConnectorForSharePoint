@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Web;
 
@@ -53,6 +53,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         public static string ConvertToBrowserUsage(string query) {
             if (query == null)
                 throw new ArgumentNullException("query");
+            // Remove the forced impersonation; if someone clicks on the search results URL
+            // they expect login prompt for the current user.
             var start = query.IndexOf("&userLogin=", StringComparison.InvariantCultureIgnoreCase);
             if (start < 0)
                 start = query.IndexOf("?userLogin=", StringComparison.InvariantCultureIgnoreCase);
@@ -63,6 +65,8 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 else
                     query = query.Remove(start);
             }
+            // Do not force the XML output format if someone clicks on the search results URL;
+            // leave the default or let it up to the current user to specify it.
             start = query.IndexOf("&outputformat=xml",
                 StringComparison.InvariantCultureIgnoreCase);
             if (start > 0) {

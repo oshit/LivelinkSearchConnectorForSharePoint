@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -83,7 +83,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 var time = DateTime.Now.ToString("D/yyyy/MM/dd:HH:mm:ss",
                     CultureInfo.InvariantCulture);
                 writer.Write(HttpUtility.UrlEncode(time));
-                // The NextURL parameter is mandatory.
+                // The NextURL parameter is mandatory although not used here.
                 writer.Write("&NextURL=");
                 writer.Write(HttpUtility.UrlEncode(Url.AbsolutePath));
                 writer.Write("&UserName=");
@@ -91,7 +91,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
                 writer.Write("&Password=");
                 writer.Write(HttpUtility.UrlEncode(credentials.Password.ToInsecureString()));
             }
-            using (var response = (HttpWebResponse)request.GetResponse()) {
+            using (var response = (HttpWebResponse) request.GetResponse()) {
                 // The actual output of the login request is ignored. Just the cookies are wanted.
                 if (response.StatusCode != HttpStatusCode.OK)
                     throw new ApplicationException(string.Format(
@@ -124,7 +124,7 @@ namespace LivelinkSearchConnector.Layouts.LivelinkOpenSearch {
         public static Stream GetResponseContent(this HttpWebRequest request) {
             request.Method = "GET";
             request.AllowReadStreamBuffering = false;
-            var response = (HttpWebResponse)request.GetResponse();
+            var response = (HttpWebResponse) request.GetResponse();
             if (response.StatusCode == HttpStatusCode.OK)
                 return response.GetResponseStream();
             response.Dispose();
