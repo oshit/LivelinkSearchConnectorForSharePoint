@@ -94,6 +94,12 @@
 .PARAMETER NoLogo
     Suppresses printing the version and license information on the console
     when the script executions starts.
+.PARAMETER WhatIf
+    Prints an information that the OSDX descriptor would be written to a file
+    instead of actually creating the file if the option OutFile is used.
+.PARAMETER Confirm
+    Prompts for a confirmation that the OSDX descriptor would be written
+    to a file before actually creating the file if the option OutFile is used.
 .INPUTS
     The input is provided by script parameters.
 .OUTPUTS
